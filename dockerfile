@@ -1,20 +1,18 @@
-# ---------- FRONTEND BUILD (Vite + Tailwind) ----------
+# ---------- FRONTEND BUILD ----------
 FROM node:18 AS frontend
 WORKDIR /app
 
-# Install dependencies
+# Install NPM dependencies
 COPY package*.json ./
 RUN npm ci
 
-# Set production environment for Vite
+# Copy only frontend source
+COPY resources resources
+COPY vite.config.js .
+
+# Build production assets
 ENV NODE_ENV=production
-
-# Copy all frontend source files
-COPY . .
-
-# Build assets
-RUN npm run build \
-    && ls -la public/build  # confirm manifest.json + assets exist
+RUN npm run build
 
 # ---------- COMPOSER DEPENDENCIES ----------
 FROM composer:2 AS composer-deps
@@ -31,11 +29,13 @@ RUN composer install \
 # ---------- FINAL PRODUCTION IMAGE ----------
 FROM php:8.4-cli
 
+# Install required system packages + PHP extensions
 RUN apt-get update && apt-get install -y \
     git curl unzip libpq-dev libonig-dev libzip-dev zip \
     && docker-php-ext-install pdo pdo_pgsql mbstring zip \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Copy Composer binary
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
 WORKDIR /var/www
@@ -48,7 +48,7 @@ COPY --from=composer-deps /app/composer.* ./
 COPY . .
 
 # Copy built frontend assets
-COPY --from=frontend --chown=www-data:www-data /app/public/build ./public/build
+COPY --from=frontend --chown=www-data:www-data /app/dist ./public/build
 
 # Ensure permissions
 RUN mkdir -p storage/framework/{views,cache,sessions} storage/logs bootstrap/cache \
