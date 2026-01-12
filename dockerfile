@@ -1,7 +1,7 @@
 
 FROM node:18 AS frontend
 WORKDIR /app
-COPY package.json ./
+COPY package.json package-lock.json ./
 RUN npm install
 COPY . .
 RUN npm run build
@@ -16,12 +16,13 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
 
-# Copy app source
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --optimize-autoloader
+
 COPY . .
 
 COPY --from=frontend /app/public/build ./public/build
 
 RUN chown -R www-data:www-data storage bootstrap/cache
 
-EXPOSE 10000
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=10000"]
+RUN php artisan
