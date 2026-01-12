@@ -1,33 +1,8 @@
-# ---------- FRONTEND BUILD ----------
-FROM node:18 AS frontend
-WORKDIR /app
-
-# Install NPM dependencies
-COPY package*.json ./
-RUN npm ci
-
-# Copy only frontend source
-COPY resources resources
-COPY vite.config.js .
-
-# Build production assets
-ENV NODE_ENV=production
-RUN npm run build
-
-# ---------- COMPOSER DEPENDENCIES ----------
-FROM composer:2 AS composer-deps
-WORKDIR /app
-
-COPY composer*.json ./
-RUN composer install \
-    --no-dev \
-    --optimize-autoloader \
-    --no-scripts \
-    --no-interaction \
-    --prefer-dist
-
 # ---------- FINAL PRODUCTION IMAGE ----------
 FROM php:8.4-cli
+
+# Set working directory
+WORKDIR /var/www
 
 # Install required system packages + PHP extensions
 RUN apt-get update && apt-get install -y \
@@ -38,17 +13,16 @@ RUN apt-get update && apt-get install -y \
 # Copy Composer binary
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
-WORKDIR /var/www
-
-# Copy Composer dependencies
-COPY --from=composer-deps /app/vendor ./vendor
-COPY --from=composer-deps /app/composer.* ./
+# Copy Composer dependencies (already installed locally)
+COPY vendor ./vendor
+COPY composer.* ./
 
 # Copy Laravel app
 COPY . .
 
-# Copy built frontend assets from frontend stage
-COPY --from=frontend --chown=www-data:www-data /app/public/build ./public/build
+# Copy locally built frontend assets
+# Make sure you've run: npm ci && npm run build locally
+COPY public/build ./public/build
 
 # Ensure permissions
 RUN mkdir -p storage/framework/{views,cache,sessions} storage/logs bootstrap/cache \
