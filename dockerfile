@@ -38,6 +38,7 @@ COPY --from=frontend /app/public/build ./public/build
 
 # Laravel permissions
 RUN chown -R www-data:www-data storage bootstrap/cache
+RUN php artisan optimize:clear || true
 
 # Start Laravel on Render's assigned port
 CMD php artisan serve --host=0.0.0.0 --port=$PORT
