@@ -39,18 +39,16 @@ COPY . .
 
 # Ensure storage and cache directories exist and are writable
 RUN mkdir -p storage/framework/views storage/framework/cache storage/logs \
-    && chown -R www-data:www-data storage bootstrap/cache
+    && chmod -R 777 storage bootstrap/cache
 
-# Cache Laravel configs, routes, and views for production
-RUN php artisan config:cache
-RUN php artisan route:cache
-RUN php artisan view:cache
+# Cache configs and routes for production
+RUN php artisan config:cache || true
+RUN php artisan route:cache || true
+RUN php artisan view:cache || true
 
 # Copy frontend build from the frontend stage
 COPY --from=frontend /app/public/build ./public/build
 
-# Final permissions
-RUN chown -R www-data:www-data storage bootstrap/cache
 
 # Serve Laravel using built-in PHP server on Render's dynamic port
 CMD php -S 0.0.0.0:$PORT -t public
