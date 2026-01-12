@@ -15,12 +15,12 @@ COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
 # Copy only Composer files for caching
 COPY composer.json composer.lock ./
-
+# Copy Laravel app
+COPY . .
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 
-# Copy Laravel app
-COPY . .
+
 
 # Copy pre-built frontend assets
 # Make sure you have committed public/build to Git, or generated it locally before Docker build
