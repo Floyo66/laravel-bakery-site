@@ -1,4 +1,4 @@
-# ---------- FINAL PRODUCTION IMAGE ----------
+# ---------- BASE IMAGE ----------
 FROM php:8.4-cli
 
 # Set working directory
@@ -10,18 +10,20 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install pdo pdo_pgsql mbstring zip \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy Composer binary
+# Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
-# Copy Composer dependencies (already installed locally)
-COPY vendor ./vendor
-COPY composer.* ./
+# Copy only Composer files for caching
+COPY composer.json composer.lock ./
+
+# Install PHP dependencies
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 
 # Copy Laravel app
 COPY . .
 
-# Copy locally built frontend assets
-# Make sure you've run: npm ci && npm run build locally
+# Copy pre-built frontend assets
+# Make sure you have committed public/build to Git, or generated it locally before Docker build
 COPY public/build ./public/build
 
 # Ensure permissions
