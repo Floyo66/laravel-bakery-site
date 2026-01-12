@@ -47,8 +47,8 @@ COPY --from=composer-deps /app/composer.* ./
 # Copy Laravel app
 COPY . .
 
-# Copy built frontend assets
-COPY --from=frontend --chown=www-data:www-data /app/dist ./public/build
+# Copy built frontend assets from frontend stage
+COPY --from=frontend --chown=www-data:www-data /app/public/build ./public/build
 
 # Ensure permissions
 RUN mkdir -p storage/framework/{views,cache,sessions} storage/logs bootstrap/cache \
