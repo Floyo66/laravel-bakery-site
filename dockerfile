@@ -1,16 +1,19 @@
-# ---------- Frontend build (Vite) ----------
+# ---------- Frontend build (Vite + Tailwind) ----------
 FROM node:18 AS frontend
 WORKDIR /app
 
+# Install dependencies
 COPY package.json package-lock.json ./
 RUN npm install
 
+# Copy source and build production assets
 COPY . .
 RUN npm run build
 
 # ---------- Backend (Laravel) ----------
 FROM php:8.2-cli
 
+# Install PHP extensions
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -21,24 +24,18 @@ RUN apt-get update && apt-get install -y \
     zip \
     && docker-php-ext-install pdo pdo_pgsql mbstring zip
 
-# Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
 
-# Install PHP dependencies (disable scripts for build safety)
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --optimize-autoloader --no-scripts
 
-# Copy application source
 COPY . .
 
-# Copy built frontend assets
 COPY --from=frontend /app/public/build ./public/build
 
-# Laravel permissions
 RUN chown -R www-data:www-data storage bootstrap/cache
 RUN php artisan optimize:clear || true
 
-# Start Laravel on Render's assigned port
 CMD php artisan serve --host=0.0.0.0 --port=$PORT
