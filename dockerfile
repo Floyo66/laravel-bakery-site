@@ -1,57 +1,42 @@
-# ---------- FRONTEND BUILD (Vite + Tailwind) ----------
+# ---------- FRONTEND BUILD ----------
 FROM node:18 AS frontend
 WORKDIR /app
 
-# Install frontend dependencies
-COPY package.json package-lock.json ./
-RUN npm install
+COPY package*.json ./
+RUN npm ci   # faster & more reliable than npm install
 
-# Copy source and build production assets
 COPY . .
-RUN npm run build
+RUN npm run build \
+    && ls -la public/build   # ← debug: see if manifest.json exists
 
-# ---------- BACKEND (Laravel) ----------
+# ---------- BACKEND ----------
 FROM php:8.2-cli
 
-# Install PHP extensions
-RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    unzip \
-    libpq-dev \
-    libonig-dev \
-    libzip-dev \
-    zip \
-    && docker-php-ext-install pdo pdo_pgsql mbstring zip
+# ... (your existing apt & extensions)
 
-# Install Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-# Set working directory
 WORKDIR /var/www
 
-# Copy composer files and install PHP dependencies
-COPY composer.json composer.lock ./
-RUN composer install --no-dev --optimize-autoloader --no-scripts
+COPY composer*.json ./
+RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction
 
-# Copy Laravel source
 COPY . .
 
-# Ensure storage/cache dirs exist and are fully writable
-RUN mkdir -p storage/framework/views storage/framework/cache storage/logs \
-    && chmod -R 777 storage bootstrap/cache
+# Fix permissions EARLY
+RUN chown -R www-data:www-data /var/www \
+    && chmod -R 775 storage bootstrap/cache \
+    && mkdir -p public/build && chown -R www-data:www-data public/build
 
-# Cache configs, routes, views
-RUN php artisan config:cache || true
-RUN php artisan route:cache || true
-RUN php artisan view:cache || true
+# Copy assets + verify
+COPY --from=frontend --chown=www-data:www-data /app/public/build ./public/build
 
-# Copy built frontend assets from frontend stage
-COPY --from=frontend /app/public/build ./public/build
+RUN ls -la public/build   # ← debug in build logs: must show manifest.json + assets
 
-# Run database migrations during build
-# This ensures tables exist before Laravel tries to serve requests
+# Caches – ignore failures
+RUN php artisan config:cache || true \
+    && php artisan route:cache || true \
+    && php artisan view:cache || true
+
+# Migrations optional – but safe with || true
 RUN php artisan migrate --force || true
 
-# Serve Laravel with built-in PHP server on Render free tier
 CMD php -S 0.0.0.0:$PORT -t public
