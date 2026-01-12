@@ -49,4 +49,4 @@ RUN chown -R www-data:www-data storage bootstrap/cache
 RUN php artisan optimize:clear || true
 
 # Serve Laravel on Render dynamic port
-CMD php artisan serve --host=0.0.0.0 --port=$PORT
+CMD php -S 0.0.0.0:$PORT -t public
