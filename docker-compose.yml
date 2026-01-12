@@ -1,0 +1,56 @@
+version: "3.9"
+
+services:
+    app:
+        build: .
+        container_name: laravel_app
+        restart: unless-stopped
+        working_dir: /var/www
+        volumes:
+            - .:/var/www
+        ports:
+            - "10000:10000"
+        environment:
+            APP_ENV: local
+            APP_DEBUG: true
+            APP_KEY: base64:HIZB4SnTRuu0UT273WYpvTYi2/58hsIkcFUfrRR4tMw=
+            DB_CONNECTION: pgsql
+            DB_HOST: db
+            DB_PORT: 5432
+            DB_DATABASE: laravel
+            DB_USERNAME: laravel
+            DB_PASSWORD: laravel
+            CACHE_DRIVER: file
+            SESSION_DRIVER: file
+            QUEUE_CONNECTION: sync
+            VITE_URL: http://localhost:5173   # Point Laravel to the Vite dev server
+        depends_on:
+            - db
+
+    db:
+        image: postgres:15
+        container_name: postgres_db
+        restart: unless-stopped
+        environment:
+            POSTGRES_DB: laravel
+            POSTGRES_USER: laravel
+            POSTGRES_PASSWORD: laravel
+        ports:
+            - "5432:5432"
+        volumes:
+            - db_data:/var/lib/postgresql/data
+
+    vite:
+        image: node:20
+        container_name: vite_dev
+        working_dir: /var/www
+        volumes:
+            - .:/var/www
+        command: sh -c "npm install && npm run dev"
+        ports:
+            - "5173:5173"
+        depends_on:
+            - app
+
+volumes:
+    db_data:
